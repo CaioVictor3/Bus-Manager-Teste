@@ -623,7 +623,6 @@ class BusManager {
     }
 
     async calculateOptimalRoute(startAddress, endAddress, students) {
-        // Validação dos endereços
         if (!startAddress || !endAddress) {
             throw new Error('Endereços de partida e chegada são obrigatórios');
         }
@@ -631,31 +630,53 @@ class BusManager {
         if (students.length === 0) {
             throw new Error('Nenhum aluno selecionado para a rota');
         }
-        
+
         const waypoints = students.map(student => ({
-            address: `${student.address}, ${student.number}, ${student.neighborhood}, ${student.city}`,
+            location: `${student.address}, ${student.number}, ${student.neighborhood}, ${student.city}`,
+            stopover: true,
             student: student
         }));
 
-        // Ordenação simples por proximidade (em produção, usar algoritmo de otimização)
-        const route = [startAddress, ...waypoints.map(w => w.address), endAddress];
-        
-        return {
+        const request = {
+            origin: startAddress,
+            destination: endAddress,
             waypoints: waypoints,
-            route: route,
-            totalDistance: this.calculateTotalDistance(waypoints),
-            estimatedTime: this.calculateEstimatedTime(waypoints)
+            optimizeWaypoints: true,
+            travelMode: google.maps.TravelMode.DRIVING
         };
-    }
 
-    calculateTotalDistance(waypoints) {
-        // Simulação - em produção, usar API de distância real
-        return waypoints.length * 2.5; // km
-    }
+        return new Promise((resolve, reject) => {
+            this.directionsService.route(request, (result, status) => {
+                if (status === 'OK') {
+                    const route = result.routes[0];
+                    const optimizedWaypoints = route.waypoint_order.map(i => waypoints[i]);
 
-    calculateEstimatedTime(waypoints) {
-        // Simulação - em produção, usar API de tempo real
-        return waypoints.length * 15; // minutos
+                    let totalDistance = 0;
+                    let totalDuration = 0;
+
+                    for (let i = 0; i < route.legs.length; i++) {
+                        totalDistance += route.legs[i].distance.value;
+                        totalDuration += route.legs[i].duration.value;
+                    }
+
+                    totalDistance = (totalDistance / 1000).toFixed(2); // em km
+                    totalDuration = Math.round(totalDuration / 60); // em minutos
+
+                    resolve({
+                        waypoints: optimizedWaypoints.map((wp, index) => ({
+                            address: wp.location,
+                            student: wp.student,
+                            order: index + 1
+                        })),
+                        route: result,
+                        totalDistance: `${totalDistance} km`,
+                        estimatedTime: `${totalDuration} min`
+                    });
+                } else {
+                    reject(new Error('Não foi possível calcular a rota: ' + status));
+                }
+            });
+        });
     }
 
     viewRoute() {

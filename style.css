@@ -35,6 +35,7 @@ body {
     transition: all 0.3s ease;
     border: 2px solid transparent;
     cursor: pointer;
+    min-height: 220px;
 }
 
 .student-card:hover {
