@@ -179,6 +179,3 @@ Para dúvidas ou problemas:
 
 Este projeto é de uso livre para fins educacionais e comerciais.
 
----
-
-**Desenvolvido com ❤️ para facilitar o transporte de alunos**
