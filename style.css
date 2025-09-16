@@ -1,0 +1,464 @@
+/* Estilos personalizados para o Bus Manager */
+
+/* Configurações gerais */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+}
+
+/* Tela de autenticação */
+#authScreen {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.card {
+    border: none;
+    border-radius: 15px;
+    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.95);
+}
+
+/* Tela principal */
+#mainScreen {
+    background-color: #f8f9fa;
+    overflow-y: auto;
+}
+
+/* Header personalizado */
+.navbar {
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+/* Cards de alunos */
+.student-card {
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+    cursor: pointer;
+}
+
+.student-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.student-card.selected {
+    border-color: #28a745;
+    background-color: #d4edda;
+}
+
+.student-card.not-going {
+    border-color: #dc3545;
+    background-color: #f8d7da;
+    opacity: 0.7;
+}
+
+/* Botões de presença */
+.presence-btn {
+    min-width: 100px;
+    font-size: 0.9rem;
+}
+
+/* Status dos alunos */
+.status-badge {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.8rem;
+}
+
+/* Modal personalizado */
+.modal-content {
+    border-radius: 15px;
+    border: none;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.modal-header {
+    border-bottom: 1px solid #e9ecef;
+    border-radius: 15px 15px 0 0;
+}
+
+/* Formulários */
+.form-control {
+    border-radius: 8px;
+    border: 1px solid #ced4da;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+/* Botões personalizados */
+.btn {
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Loading spinner */
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+}
+
+/* Alertas personalizados */
+.alert {
+    border-radius: 10px;
+    border: none;
+}
+
+/* Mapa */
+#map {
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+/* Lista de rota */
+#routeOrder {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+/* Responsividade mobile */
+@media (max-width: 768px) {
+    .container-fluid {
+        padding: 0.5rem;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .btn-lg {
+        font-size: 1rem;
+        padding: 0.75rem 1.5rem;
+    }
+    
+    .student-card {
+        margin-bottom: 0.5rem;
+    }
+    
+    .modal-dialog {
+        margin: 0.5rem;
+    }
+    
+    .navbar-brand {
+        font-size: 1.1rem;
+    }
+    
+    .card-header h5 {
+        font-size: 1rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .btn-lg {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+    
+    .btn-lg.ms-2 {
+        margin-left: 0 !important;
+    }
+    
+    .col-md-6 {
+        margin-bottom: 1rem;
+    }
+    
+    .presence-btn {
+        min-width: 80px;
+        font-size: 0.8rem;
+    }
+}
+
+/* Animações */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease-out;
+}
+
+/* Estados de loading */
+.loading {
+    position: relative;
+    pointer-events: none;
+}
+
+.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* CEP validation */
+.cep-valid {
+    border-color: #28a745 !important;
+}
+
+.cep-invalid {
+    border-color: #dc3545 !important;
+}
+
+/* Toast notifications */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1055;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #667eea;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #5a6fd8;
+}
+
+/* Status indicators */
+.status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 8px;
+}
+
+.status-indicator.going {
+    background-color: #28a745;
+}
+
+.status-indicator.not-going {
+    background-color: #dc3545;
+}
+
+.status-indicator.pending {
+    background-color: #ffc107;
+}
+
+/* Route optimization info */
+.route-info {
+    background-color: #e3f2fd;
+    border-left: 4px solid #2196f3;
+    padding: 1rem;
+    margin: 1rem 0;
+    border-radius: 0 8px 8px 0;
+}
+
+/* Student list empty state */
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #6c757d;
+}
+
+.empty-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+/* Address autocomplete */
+.pac-container {
+    z-index: 1050;
+}
+
+/* Estilos para campos de endereço de rota */
+.route-section {
+    border-left: 4px solid #e9ecef;
+    padding-left: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.route-section h6 {
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.route-section.text-primary {
+    border-left-color: #0d6efd;
+}
+
+.route-section.text-success {
+    border-left-color: #198754;
+}
+
+/* Validação de CEP para rotas */
+#startCep.cep-valid,
+#endCep.cep-valid {
+    border-color: #28a745 !important;
+    background-color: #d4edda;
+}
+
+#startCep.cep-invalid,
+#endCep.cep-invalid {
+    border-color: #dc3545 !important;
+    background-color: #f8d7da;
+}
+
+/* Melhorias nos campos de rota */
+.route-section .form-control:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+.route-section .input-group .btn {
+    border-color: #ced4da;
+}
+
+.route-section .input-group .btn:hover {
+    background-color: #e9ecef;
+    border-color: #adb5bd;
+}
+
+/* Botões de ação dos alunos */
+.student-actions {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+}
+
+.dropdown-toggle {
+    border: none;
+    background: transparent;
+    color: #6c757d;
+    padding: 0.25rem;
+}
+
+.dropdown-toggle:hover {
+    color: #495057;
+    background-color: rgba(0,0,0,0.05);
+}
+
+.dropdown-menu {
+    border: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    border-radius: 8px;
+    padding: 0.5rem 0;
+}
+
+.dropdown-item {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.dropdown-item:hover {
+    background-color: #f8f9fa;
+    color: #495057;
+}
+
+.dropdown-item.text-danger:hover {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+/* Status indicators melhorados */
+.status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 8px;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.1);
+}
+
+.status-indicator.going {
+    background-color: #28a745;
+}
+
+.status-indicator.not-going {
+    background-color: #dc3545;
+}
+
+.status-indicator.pending {
+    background-color: #ffc107;
+}
+
+/* Cards de alunos com posição relativa para botões */
+.student-card {
+    position: relative;
+}
+
+/* Melhorias no layout dos cards */
+.student-card .card-body {
+    padding-bottom: 1rem;
+}
+
+.student-card .card-title {
+    margin-right: 2rem; /* Espaço para o dropdown */
+}
+
+/* Mobile specific adjustments */
+@media (max-width: 480px) {
+    .card {
+        margin-bottom: 0.5rem;
+    }
+    
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+    
+    .modal-body {
+        padding: 1rem;
+    }
+    
+    .form-label {
+        font-size: 0.9rem;
+        margin-bottom: 0.25rem;
+    }
+    
+    .form-control {
+        font-size: 0.9rem;
+        padding: 0.5rem 0.75rem;
+    }
+    
+    .dropdown-menu {
+        font-size: 0.8rem;
+    }
+    
+    .student-card .card-title {
+        margin-right: 1.5rem;
+    }
+}
