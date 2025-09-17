@@ -2,9 +2,9 @@
 // Configure suas APIs e preferências aqui
 
 const CONFIG = {
-    // Google Maps API Key
-    // Obtenha sua chave em: https://console.cloud.google.com/
-    GOOGLE_MAPS_API_KEY: 'YOUR_API_KEY_HERE',
+    // OpenRouteService API Key
+    // Obtenha sua chave em: https://openrouteservice.org/
+    OPENROUTESERVICE_API_KEY: 'YOUR_API_KEY_HERE',
     
     // Configurações da aplicação
     APP: {
@@ -47,20 +47,20 @@ const CONFIG = {
     }
 };
 
-// Função para obter a chave da API do Google Maps
-function getGoogleMapsApiKey() {
-    return CONFIG.GOOGLE_MAPS_API_KEY;
+// Função para obter a chave da API do OpenRouteService
+function getOpenRouteServiceApiKey() {
+    return CONFIG.OPENROUTESERVICE_API_KEY;
 }
 
 // Função para verificar se a API está configurada
-function isGoogleMapsConfigured() {
-    return CONFIG.GOOGLE_MAPS_API_KEY !== 'YOUR_API_KEY_HERE' && 
-           CONFIG.GOOGLE_MAPS_API_KEY.length > 0;
+function isOpenRouteServiceConfigured() {
+    return CONFIG.OPENROUTESERVICE_API_KEY !== 'YOUR_API_KEY_HERE' &&
+           CONFIG.OPENROUTESERVICE_API_KEY.length > 0;
 }
 
 // Exportar configurações para uso global
 if (typeof window !== 'undefined') {
     window.CONFIG = CONFIG;
-    window.getGoogleMapsApiKey = getGoogleMapsApiKey;
-    window.isGoogleMapsConfigured = isGoogleMapsConfigured;
+    window.getOpenRouteServiceApiKey = getOpenRouteServiceApiKey;
+    window.isOpenRouteServiceConfigured = isOpenRouteServiceConfigured;
 }

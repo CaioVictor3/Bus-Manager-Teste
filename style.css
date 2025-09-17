@@ -303,6 +303,25 @@ body {
     z-index: 1050;
 }
 
+.autocomplete-suggestions {
+    border: 1px solid #ddd;
+    max-height: 150px;
+    overflow-y: auto;
+    position: absolute;
+    background: #fff;
+    z-index: 1051;
+    width: 100%;
+}
+
+.autocomplete-suggestions div {
+    padding: 10px;
+    cursor: pointer;
+}
+
+.autocomplete-suggestions div:hover {
+    background-color: #f5f5f5;
+}
+
 /* Estilos para campos de endereço de rota */
 .route-section {
     border-left: 4px solid #e9ecef;
