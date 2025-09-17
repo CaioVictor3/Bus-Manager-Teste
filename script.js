@@ -8,9 +8,7 @@ class BusManager {
         this.students = [];
         this.route = [];
         this.map = null;
-        this.directionsService = null;
-        this.directionsRenderer = null;
-        this.autocomplete = null;
+        this.orsClient = null;
         this.startPoint = null;
         this.endPoint = null;
         
@@ -22,9 +20,17 @@ class BusManager {
         this.loadDriverData();
         this.loadStudentsData();
         this.loadRoutePoints();
-        this.setupAddressAutocomplete();
         this.showStorageInfo();
         
+        if (isOpenRouteServiceConfigured()) {
+            this.orsClient = new Openrouteservice.Directions({
+                api_key: CONFIG.OPENROUTESERVICE_API_KEY
+            });
+            this.setupAddressAutocomplete('studentAddress');
+            this.setupAddressAutocomplete('modalStartAddress');
+            this.setupAddressAutocomplete('modalEndAddress');
+        }
+
         // Verificar se há um driver logado e mostrar tela principal
         if (this.currentDriver) {
             this.showMainScreen();
@@ -623,39 +629,66 @@ class BusManager {
     }
 
     async calculateOptimalRoute(startAddress, endAddress, students) {
-        // Validação dos endereços
-        if (!startAddress || !endAddress) {
-            throw new Error('Endereços de partida e chegada são obrigatórios');
+        if (!this.orsClient) {
+            throw new Error('OpenRouteService client não está configurado. Verifique sua chave de API.');
         }
 
-        if (students.length === 0) {
-            throw new Error('Nenhum aluno selecionado para a rota');
-        }
-        
-        const waypoints = students.map(student => ({
-            address: `${student.address}, ${student.number}, ${student.neighborhood}, ${student.city}`,
-            student: student
+        const geocodeClient = new Openrouteservice.Geocode({ api_key: CONFIG.OPENROUTESERVICE_API_KEY });
+
+        const startCoords = await geocodeClient.geocode({ text: startAddress });
+        const endCoords = await geocodeClient.geocode({ text: endAddress });
+
+        const studentWaypoints = await Promise.all(students.map(async (student) => {
+            const address = `${student.address}, ${student.number}, ${student.neighborhood}, ${student.city}`;
+            const coords = await geocodeClient.geocode({ text: address });
+            return {
+                coords: coords.features[0].geometry.coordinates,
+                student: student
+            };
         }));
 
-        // Ordenação simples por proximidade (em produção, usar algoritmo de otimização)
-        const route = [startAddress, ...waypoints.map(w => w.address), endAddress];
-        
+        const request = {
+            coordinates: [
+                startCoords.features[0].geometry.coordinates,
+                ...studentWaypoints.map(wp => wp.coords),
+                endCoords.features[0].geometry.coordinates
+            ],
+            profile: 'driving-car',
+            format: 'geojson'
+        };
+
+        const response = await this.orsClient.calculate(request);
+
+        const route = response.routes[0];
+        const waypoints = response.waypoints;
+
+        const optimizedWaypoints = waypoints.slice(1, -1).map((wp, index) => {
+            const originalIndex = wp.waypoint_index - 1;
+            return {
+                ...studentWaypoints[originalIndex],
+                order: index + 1
+            };
+        });
+
         return {
-            waypoints: waypoints,
-            route: route,
-            totalDistance: this.calculateTotalDistance(waypoints),
-            estimatedTime: this.calculateEstimatedTime(waypoints)
+            waypoints: optimizedWaypoints,
+            route: route.geometry,
+            totalDistance: `${(route.summary.distance / 1000).toFixed(2)} km`,
+            estimatedTime: `${Math.round(route.summary.duration / 60)} min`
         };
     }
 
-    calculateTotalDistance(waypoints) {
-        // Simulação - em produção, usar API de distância real
-        return waypoints.length * 2.5; // km
-    }
+    displayRouteOnMap() {
+        if (this.route && this.route.route) {
+            const routeLayer = L.geoJSON(this.route.route).addTo(this.map);
+            this.map.fitBounds(routeLayer.getBounds());
 
-    calculateEstimatedTime(waypoints) {
-        // Simulação - em produção, usar API de tempo real
-        return waypoints.length * 15; // minutos
+            this.route.waypoints.forEach(wp => {
+                L.marker([...wp.coords].reverse()).addTo(this.map)
+                    .bindPopup(`<b>${wp.order}. ${wp.student.name}</b><br>${wp.student.address}`)
+                    .openPopup();
+            });
+        }
     }
 
     viewRoute() {
@@ -671,50 +704,21 @@ class BusManager {
 
     initMap() {
         if (this.map) {
-            this.map = null;
+            this.map.remove();
         }
 
         const mapElement = document.getElementById('map');
-        const center = CONFIG.APP.defaultCenter;
+        const center = [CONFIG.APP.defaultCenter.lat, CONFIG.APP.defaultCenter.lng];
 
-        this.map = new google.maps.Map(mapElement, {
-            zoom: CONFIG.APP.defaultZoom,
-            center: center,
-            mapTypeId: 'roadmap'
-        });
+        this.map = L.map(mapElement).setView(center, CONFIG.APP.defaultZoom);
 
-        this.directionsService = new google.maps.DirectionsService();
-        this.directionsRenderer = new google.maps.DirectionsRenderer();
-        this.directionsRenderer.setMap(this.map);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(this.map);
 
         if (this.route && this.route.waypoints.length > 0) {
             this.displayRouteOnMap();
         }
-    }
-
-    displayRouteOnMap() {
-        const startAddress = this.buildFullAddressFromPoint(this.startPoint);
-        const endAddress = this.buildFullAddressFromPoint(this.endPoint);
-        const waypoints = this.route.waypoints.map(wp => ({
-            location: wp.address,
-            stopover: true
-        }));
-
-        const request = {
-            origin: startAddress,
-            destination: endAddress,
-            waypoints: waypoints,
-            optimizeWaypoints: CONFIG.ROUTE.optimizeWaypoints,
-            travelMode: google.maps.TravelMode[CONFIG.ROUTE.defaultTravelMode]
-        };
-
-        this.directionsService.route(request, (result, status) => {
-            if (status === 'OK') {
-                this.directionsRenderer.setDirections(result);
-            } else {
-                this.showToast('Erro ao exibir rota no mapa', 'error');
-            }
-        });
     }
 
     displayRouteOrder() {
@@ -744,16 +748,34 @@ class BusManager {
         }
     }
 
-    // Autocomplete de endereços
-    setupAddressAutocomplete() {
-        // Configurar autocomplete para campos de endereço
-        const startInput = document.getElementById('startAddress');
-        const endInput = document.getElementById('endAddress');
 
-        if (typeof google !== 'undefined' && google.maps) {
-            this.autocomplete = new google.maps.places.Autocomplete(startInput);
-            new google.maps.places.Autocomplete(endInput);
-        }
+    setupAddressAutocomplete(inputId) {
+        const input = document.getElementById(inputId);
+        const suggestions = document.createElement('div');
+        suggestions.classList.add('autocomplete-suggestions');
+        input.parentNode.appendChild(suggestions);
+
+        input.addEventListener('input', async () => {
+            const text = input.value;
+            if (text.length < 3) {
+                suggestions.innerHTML = '';
+                return;
+            }
+
+            const geocodeClient = new Openrouteservice.Geocode({ api_key: CONFIG.OPENROUTESERVICE_API_KEY });
+            const result = await geocodeClient.autocomplete({ text: text });
+
+            suggestions.innerHTML = '';
+            result.features.forEach(feature => {
+                const suggestion = document.createElement('div');
+                suggestion.textContent = feature.properties.label;
+                suggestion.addEventListener('click', () => {
+                    input.value = feature.properties.label;
+                    suggestions.innerHTML = '';
+                });
+                suggestions.appendChild(suggestion);
+            });
+        });
     }
 
     // Sistema de Notificações
