@@ -11,6 +11,7 @@ class BusManager {
         this.orsClient = null;
         this.startPoint = null;
         this.endPoint = null;
+        this.osmIntegration = null; // Nova integração com OpenStreetMap
         
         this.init();
     }
@@ -21,6 +22,9 @@ class BusManager {
         this.loadStudentsData();
         this.loadRoutePoints();
         this.showStorageInfo();
+        
+        // Inicializar integração com OpenStreetMap
+        this.osmIntegration = new OSMIntegration();
         
         if (isOpenRouteServiceConfigured()) {
             this.orsClient = new Openrouteservice.Directions({
@@ -62,6 +66,7 @@ class BusManager {
         document.getElementById('startRouteBtn').addEventListener('click', () => this.startRoute());
         document.getElementById('viewRouteBtn').addEventListener('click', () => this.viewRoute());
         document.getElementById('startNavigationBtn').addEventListener('click', () => this.startNavigation());
+        document.getElementById('recalculateRouteBtn').addEventListener('click', () => this.recalculateRoute());
     }
 
     // Sistema de Autenticação
@@ -591,8 +596,17 @@ class BusManager {
         const hasStartPoint = this.startPoint && this.startPoint.address && this.startPoint.number && this.startPoint.city;
         const hasEndPoint = this.endPoint && this.endPoint.address && this.endPoint.number && this.endPoint.city;
 
+        // Verificar se há rota calculada
+        const hasCalculatedRoute = this.route && this.route.points && this.route.points.length > 0;
+
         document.getElementById('startRouteBtn').disabled = !(hasStudents && hasStartPoint && hasEndPoint && hasGoingStudents);
         document.getElementById('viewRouteBtn').disabled = !(hasStudents && hasStartPoint && hasEndPoint);
+        
+        // Habilitar botão de navegação se houver rota calculada
+        const navigationBtn = document.getElementById('startNavigationBtn');
+        if (navigationBtn) {
+            navigationBtn.disabled = !hasCalculatedRoute;
+        }
     }
 
     // Sistema de Rotas
@@ -614,14 +628,22 @@ class BusManager {
             return;
         }
 
-        // Construir endereços completos
-        const startAddress = this.buildFullAddressFromPoint(this.startPoint);
-        const endAddress = this.buildFullAddressFromPoint(this.endPoint);
-
         try {
-            this.route = await this.calculateOptimalRoute(startAddress, endAddress, goingStudents);
-            this.showToast('Rota calculada com sucesso!', 'success');
-            this.viewRoute();
+            this.showToast('Calculando rota com OpenStreetMap...', 'info');
+            
+            // Usar integração OSM para calcular rota
+            this.route = await this.osmIntegration.calculateAndDisplayRoute(
+                goingStudents,
+                this.startPoint,
+                this.endPoint,
+                'map'
+            );
+            
+            this.showToast('Rota calculada com sucesso! Clique em "Ver Rota" para visualizar.', 'success');
+            
+            // Atualizar botões após cálculo da rota
+            this.updateRouteButtons();
+            
         } catch (error) {
             console.error('Erro ao calcular rota:', error);
             this.showToast(`Erro ao calcular rota: ${error.message}`, 'error');
@@ -692,11 +714,32 @@ class BusManager {
     }
 
     viewRoute() {
+        // Verificar se há alunos marcados para ir
+        const goingStudents = this.students.filter(s => s.going);
+        if (goingStudents.length === 0) {
+            this.showToast('Nenhum aluno marcado para ir à aula!', 'error');
+            return;
+        }
+
+        // Verificar se os pontos estão configurados
+        if (!this.startPoint || !this.endPoint) {
+            this.showToast('Configure os pontos de partida e chegada primeiro!', 'error');
+            return;
+        }
+
         const modal = new bootstrap.Modal(document.getElementById('routeModal'));
         modal.show();
         
-        // Inicializar mapa
-        this.initMap();
+        // Inicializar mapa usando OSM Integration
+        this.initMapWithOSM();
+        
+        // Calcular e exibir rota completa se ainda não foi calculada
+        if (!this.route || !this.route.points) {
+            this.calculateAndDisplayRouteForView();
+        } else {
+            // Exibir rota já calculada
+            this.displayOSMRouteOnMap();
+        }
         
         // Mostrar ordem da rota
         this.displayRouteOrder();
@@ -721,9 +764,140 @@ class BusManager {
         }
     }
 
+    initMapWithOSM() {
+        try {
+            // Determinar ponto inicial para centralização
+            let startPointData = null;
+            if (this.route && this.route.points) {
+                startPointData = this.route.points.find(p => p.type === 'start');
+            } else if (this.startPoint) {
+                // Se não há rota calculada, usar ponto de partida configurado
+                startPointData = {
+                    coordinates: {
+                        lat: CONFIG.APP.defaultCenter.lat,
+                        lng: CONFIG.APP.defaultCenter.lng
+                    }
+                };
+            }
+            
+            // Usar OSM Integration para inicializar mapa centralizado
+            this.map = this.osmIntegration.initMap('map', {
+                center: [CONFIG.APP.defaultCenter.lat, CONFIG.APP.defaultCenter.lng],
+                zoom: CONFIG.APP.defaultZoom
+            }, startPointData);
+            
+            // Se já temos uma rota calculada, exibir no mapa
+            if (this.route && this.route.points) {
+                this.displayOSMRouteOnMap();
+            }
+        } catch (error) {
+            console.error('Erro ao inicializar mapa OSM:', error);
+            this.showToast('Erro ao carregar mapa. Usando mapa padrão.', 'warning');
+            this.initMap(); // Fallback para método original
+        }
+    }
+
+    displayOSMRouteOnMap() {
+        try {
+            if (!this.route || !this.route.points) {
+                console.warn('Nenhuma rota OSM para exibir');
+                return;
+            }
+
+            // Adicionar marcadores
+            this.osmIntegration.addMarkers(this.route.points);
+            
+            // Desenhar rota se disponível
+            if (this.route.geometry) {
+                this.osmIntegration.drawRoute(this.route);
+            }
+            
+            console.log('Rota OSM exibida no mapa');
+        } catch (error) {
+            console.error('Erro ao exibir rota OSM:', error);
+            this.showToast('Erro ao exibir rota no mapa', 'error');
+        }
+    }
+
+    async calculateAndDisplayRouteForView() {
+        try {
+            this.showToast('Calculando rota para visualização...', 'info');
+            
+            // Obter apenas alunos com presença confirmada
+            const goingStudents = this.students.filter(s => s.going);
+            
+            if (goingStudents.length === 0) {
+                this.showToast('Nenhum aluno marcado para ir à aula!', 'error');
+                return;
+            }
+
+            // Calcular rota usando OSM Integration
+            this.route = await this.osmIntegration.calculateAndDisplayRoute(
+                goingStudents,
+                this.startPoint,
+                this.endPoint,
+                'map'
+            );
+            
+            this.showToast('Rota calculada e exibida no mapa!', 'success');
+            
+        } catch (error) {
+            console.error('Erro ao calcular rota para visualização:', error);
+            this.showToast(`Erro ao calcular rota: ${error.message}`, 'error');
+        }
+    }
+
+    async recalculateRoute() {
+        try {
+            this.showToast('Recalculando rota...', 'info');
+            
+            // Limpar rota atual
+            this.route = null;
+            if (this.osmIntegration) {
+                this.osmIntegration.clearMap();
+            }
+            
+            // Recalcular rota
+            await this.calculateAndDisplayRouteForView();
+            
+            // Atualizar botões
+            this.updateRouteButtons();
+            
+        } catch (error) {
+            console.error('Erro ao recalcular rota:', error);
+            this.showToast(`Erro ao recalcular rota: ${error.message}`, 'error');
+        }
+    }
+
     displayRouteOrder() {
         const container = document.getElementById('routeOrder');
-        if (this.route && this.route.waypoints.length > 0) {
+        
+        if (this.route && this.route.points && this.route.points.length > 0) {
+            // Usar nova estrutura OSM
+            container.innerHTML = this.route.points.map((point, index) => `
+                <li class="mb-2">
+                    <strong>${index + 1}.</strong> ${point.name}<br>
+                    <small class="text-muted">${point.address}</small>
+                    ${point.type === 'start' ? '<span class="badge bg-success ms-2">Partida</span>' : ''}
+                    ${point.type === 'end' ? '<span class="badge bg-danger ms-2">Chegada</span>' : ''}
+                    ${point.type === 'student' ? '<span class="badge bg-primary ms-2">Aluno</span>' : ''}
+                </li>
+            `).join('');
+            
+            // Adicionar informações da rota se disponível
+            if (this.route.summary) {
+                const routeInfo = document.createElement('div');
+                routeInfo.className = 'route-info mt-3';
+                routeInfo.innerHTML = `
+                    <h6><i class="fas fa-route me-2"></i>Informações da Rota</h6>
+                    <p class="mb-1"><strong>Distância Total:</strong> ${this.route.summary.totalDistance}</p>
+                    <p class="mb-1"><strong>Tempo Estimado:</strong> ${this.route.summary.totalDuration}</p>
+                    <p class="mb-0"><strong>Pontos na Rota:</strong> ${this.route.summary.totalPoints}</p>
+                `;
+                container.appendChild(routeInfo);
+            }
+        } else if (this.route && this.route.waypoints && this.route.waypoints.length > 0) {
+            // Fallback para estrutura antiga
             container.innerHTML = this.route.waypoints.map((wp, index) => `
                 <li class="mb-2">
                     <strong>${index + 1}.</strong> ${wp.student.name}<br>
@@ -736,15 +910,42 @@ class BusManager {
     }
 
     startNavigation() {
-        if (this.route && this.route.waypoints.length > 0) {
-            const startAddress = this.buildFullAddressFromPoint(this.startPoint);
-            const firstWaypoint = this.route.waypoints[0].address;
-            
-            // Abrir Google Maps com navegação
-            const mapsUrl = `https://www.google.com/maps/dir/${encodeURIComponent(startAddress)}/${encodeURIComponent(firstWaypoint)}`;
-            window.open(mapsUrl, '_blank');
-            
-            this.showToast('Navegação iniciada no Google Maps!', 'success');
+        try {
+            if (this.route && this.route.points && this.route.points.length > 0) {
+                // Usar nova estrutura OSM - incluir todos os waypoints
+                const allAddresses = this.route.points.map(point => point.address);
+                
+                if (allAddresses.length > 0) {
+                    // Construir URL do Google Maps com todos os waypoints
+                    const encodedAddresses = allAddresses.map(addr => encodeURIComponent(addr));
+                    const mapsUrl = `https://www.google.com/maps/dir/${encodedAddresses.join('/')}`;
+                    
+                    // Abrir Google Maps com navegação completa
+                    window.open(mapsUrl, '_blank');
+                    
+                    this.showToast(`Navegação iniciada no Google Maps com ${allAddresses.length} pontos!`, 'success');
+                } else {
+                    this.showToast('Nenhum endereço válido encontrado na rota!', 'error');
+                }
+            } else if (this.route && this.route.waypoints && this.route.waypoints.length > 0) {
+                // Fallback para estrutura antiga
+                const startAddress = this.buildFullAddressFromPoint(this.startPoint);
+                const endAddress = this.buildFullAddressFromPoint(this.endPoint);
+                const studentAddresses = this.route.waypoints.map(wp => wp.address);
+                
+                // Construir URL com todos os endereços
+                const allAddresses = [startAddress, ...studentAddresses, endAddress];
+                const encodedAddresses = allAddresses.map(addr => encodeURIComponent(addr));
+                const mapsUrl = `https://www.google.com/maps/dir/${encodedAddresses.join('/')}`;
+                
+                window.open(mapsUrl, '_blank');
+                this.showToast('Navegação iniciada no Google Maps!', 'success');
+            } else {
+                this.showToast('Nenhuma rota disponível para navegação!', 'error');
+            }
+        } catch (error) {
+            console.error('Erro ao iniciar navegação:', error);
+            this.showToast('Erro ao abrir navegação no Google Maps!', 'error');
         }
     }
 
@@ -953,3 +1154,4 @@ window.clearAllData = () => {
         window.busManager.clearAllData();
     }
 };
+

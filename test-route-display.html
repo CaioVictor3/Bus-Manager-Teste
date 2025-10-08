@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste - Exibição de Rota Completa</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="style.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <div class="row">
+            <div class="col-12">
+                <h1 class="mb-4">
+                    <i class="fas fa-route me-2"></i>
+                    Teste - Exibição de Rota Completa
+                </h1>
+                <p class="text-muted">Teste das funcionalidades de visualização de rota e navegação com Google Maps</p>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Controles de Teste -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-cogs me-2"></i>Controles de Teste</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Alunos de Teste (Simulados)</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="student1" checked>
+                                <label class="form-check-label" for="student1">João Silva - Rua Augusta, 123</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="student2" checked>
+                                <label class="form-check-label" for="student2">Maria Santos - Avenida Paulista, 1000</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="student3" checked>
+                                <label class="form-check-label" for="student3">Pedro Costa - Rua Oscar Freire, 200</label>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="startPoint" class="form-label">Ponto de Partida</label>
+                            <input type="text" class="form-control" id="startPoint" 
+                                   value="Escola Municipal, Rua das Flores, 456, São Paulo - SP">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="endPoint" class="form-label">Ponto de Chegada</label>
+                            <input type="text" class="form-control" id="endPoint" 
+                                   value="Faculdade XYZ, Avenida Universitária, 789, São Paulo - SP">
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-primary" id="testViewRoute">
+                                <i class="fas fa-eye me-1"></i>Testar "Ver Rota"
+                            </button>
+                            <button class="btn btn-success" id="testNavigation">
+                                <i class="fas fa-navigation me-1"></i>Testar Navegação Google Maps
+                            </button>
+                            <button class="btn btn-info" id="testRecalculate">
+                                <i class="fas fa-redo me-1"></i>Testar Recalcular Rota
+                            </button>
+                            <button class="btn btn-warning" id="clearTest">
+                                <i class="fas fa-trash me-1"></i>Limpar Teste
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resultados -->
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h6><i class="fas fa-info-circle me-2"></i>Resultados do Teste</h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="testResults" class="small">
+                            <p class="text-muted">Clique em um dos botões para testar as funcionalidades.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mapa -->
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-map me-2"></i>Mapa Interativo - Rota Completa</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="testMap" style="height: 500px; width: 100%;"></div>
+                    </div>
+                </div>
+
+                <!-- Ordem da Rota -->
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h6><i class="fas fa-list me-2"></i>Ordem da Rota</h6>
+                    </div>
+                    <div class="card-body">
+                        <ol id="routeOrder" class="mb-0">
+                            <li class="text-muted">Nenhuma rota calculada</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="config.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="osm-integration.js"></script>
+    <script>
+        // Simular dados do Bus Manager
+        let testData = {
+            osmIntegration: new OSMIntegration(),
+            map: null,
+            route: null,
+            students: [
+                { name: 'João Silva', address: 'Rua Augusta, 123', going: true },
+                { name: 'Maria Santos', address: 'Avenida Paulista, 1000', going: true },
+                { name: 'Pedro Costa', address: 'Rua Oscar Freire, 200', going: true }
+            ],
+            startPoint: { address: 'Escola Municipal, Rua das Flores, 456, São Paulo - SP' },
+            endPoint: { address: 'Faculdade XYZ, Avenida Universitária, 789, São Paulo - SP' }
+        };
+
+        // Inicializar mapa de teste
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                testData.map = testData.osmIntegration.initMap('testMap', {
+                    center: [-23.5505, -46.6333], // São Paulo
+                    zoom: 12
+                });
+                console.log('Mapa de teste inicializado');
+            } catch (error) {
+                console.error('Erro ao inicializar mapa:', error);
+            }
+        });
+
+        // Teste "Ver Rota"
+        document.getElementById('testViewRoute').addEventListener('click', async function() {
+            try {
+                showResults('Testando "Ver Rota" - Calculando rota completa...', 'info');
+                
+                // Obter alunos selecionados
+                const selectedStudents = getSelectedStudents();
+                if (selectedStudents.length === 0) {
+                    showResults('Nenhum aluno selecionado!', 'warning');
+                    return;
+                }
+
+                // Simular cálculo de rota
+                testData.route = await testData.osmIntegration.calculateAndDisplayRoute(
+                    selectedStudents,
+                    testData.startPoint,
+                    testData.endPoint,
+                    'testMap'
+                );
+
+                // Exibir ordem da rota
+                displayRouteOrder();
+
+                showResults(`
+                    <strong>✅ "Ver Rota" funcionando!</strong><br>
+                    <strong>Alunos incluídos:</strong> ${selectedStudents.length}<br>
+                    <strong>Pontos na rota:</strong> ${testData.route.points.length}<br>
+                    <strong>Distância:</strong> ${testData.route.summary.totalDistance}<br>
+                    <strong>Duração:</strong> ${testData.route.summary.totalDuration}
+                `, 'success');
+
+            } catch (error) {
+                showResults(`<strong>❌ Erro no "Ver Rota":</strong> ${error.message}`, 'danger');
+            }
+        });
+
+        // Teste Navegação Google Maps
+        document.getElementById('testNavigation').addEventListener('click', function() {
+            try {
+                if (!testData.route || !testData.route.points) {
+                    showResults('Calcule uma rota primeiro!', 'warning');
+                    return;
+                }
+
+                // Construir URL do Google Maps com todos os waypoints
+                const allAddresses = testData.route.points.map(point => point.address);
+                const encodedAddresses = allAddresses.map(addr => encodeURIComponent(addr));
+                const mapsUrl = `https://www.google.com/maps/dir/${encodedAddresses.join('/')}`;
+                
+                showResults(`
+                    <strong>✅ Navegação Google Maps!</strong><br>
+                    <strong>URL gerada:</strong><br>
+                    <small class="text-break">${mapsUrl}</small><br><br>
+                    <strong>Pontos incluídos:</strong> ${allAddresses.length}<br>
+                    <em>Clique no link para testar:</em><br>
+                    <a href="${mapsUrl}" target="_blank" class="btn btn-sm btn-success">
+                        <i class="fas fa-external-link-alt me-1"></i>Abrir Google Maps
+                    </a>
+                `, 'success');
+
+            } catch (error) {
+                showResults(`<strong>❌ Erro na navegação:</strong> ${error.message}`, 'danger');
+            }
+        });
+
+        // Teste Recalcular Rota
+        document.getElementById('testRecalculate').addEventListener('click', async function() {
+            try {
+                showResults('Testando "Recalcular Rota"...', 'info');
+                
+                // Limpar rota atual
+                testData.route = null;
+                testData.osmIntegration.clearMap();
+                
+                // Obter alunos selecionados
+                const selectedStudents = getSelectedStudents();
+                if (selectedStudents.length === 0) {
+                    showResults('Nenhum aluno selecionado!', 'warning');
+                    return;
+                }
+
+                // Recalcular rota
+                testData.route = await testData.osmIntegration.calculateAndDisplayRoute(
+                    selectedStudents,
+                    testData.startPoint,
+                    testData.endPoint,
+                    'testMap'
+                );
+
+                // Exibir ordem da rota
+                displayRouteOrder();
+
+                showResults(`
+                    <strong>✅ Rota recalculada!</strong><br>
+                    <strong>Nova rota com:</strong> ${testData.route.points.length} pontos<br>
+                    <strong>Distância:</strong> ${testData.route.summary.totalDistance}<br>
+                    <strong>Duração:</strong> ${testData.route.summary.totalDuration}
+                `, 'success');
+
+            } catch (error) {
+                showResults(`<strong>❌ Erro ao recalcular:</strong> ${error.message}`, 'danger');
+            }
+        });
+
+        // Limpar teste
+        document.getElementById('clearTest').addEventListener('click', function() {
+            testData.osmIntegration.clearMap();
+            testData.route = null;
+            document.getElementById('routeOrder').innerHTML = '<li class="text-muted">Nenhuma rota calculada</li>';
+            showResults('Teste limpo', 'info');
+        });
+
+        // Função para obter alunos selecionados
+        function getSelectedStudents() {
+            const students = [];
+            if (document.getElementById('student1').checked) {
+                students.push({ name: 'João Silva', address: 'Rua Augusta, 123, São Paulo - SP', going: true });
+            }
+            if (document.getElementById('student2').checked) {
+                students.push({ name: 'Maria Santos', address: 'Avenida Paulista, 1000, São Paulo - SP', going: true });
+            }
+            if (document.getElementById('student3').checked) {
+                students.push({ name: 'Pedro Costa', address: 'Rua Oscar Freire, 200, São Paulo - SP', going: true });
+            }
+            return students;
+        }
+
+        // Função para exibir ordem da rota
+        function displayRouteOrder() {
+            const container = document.getElementById('routeOrder');
+            
+            if (testData.route && testData.route.points && testData.route.points.length > 0) {
+                container.innerHTML = testData.route.points.map((point, index) => `
+                    <li class="mb-2">
+                        <strong>${index + 1}.</strong> ${point.name}<br>
+                        <small class="text-muted">${point.address}</small>
+                        ${point.type === 'start' ? '<span class="badge bg-success ms-2">Partida</span>' : ''}
+                        ${point.type === 'end' ? '<span class="badge bg-danger ms-2">Chegada</span>' : ''}
+                        ${point.type === 'student' ? '<span class="badge bg-primary ms-2">Aluno</span>' : ''}
+                    </li>
+                `).join('');
+            } else {
+                container.innerHTML = '<li class="text-muted">Nenhuma rota calculada</li>';
+            }
+        }
+
+        // Função para mostrar resultados
+        function showResults(message, type) {
+            const resultsDiv = document.getElementById('testResults');
+            resultsDiv.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+        }
+    </script>
+</body>
+</html>

@@ -32,6 +32,16 @@ const CONFIG = {
         avoidTolls: false
     },
     
+    // Configurações do OpenStreetMap
+    OSM: {
+        nominatimUrl: 'https://nominatim.openstreetmap.org',
+        osrmUrl: 'https://router.project-osrm.org',
+        userAgent: 'BusManager/1.0 (Transporte Escolar)',
+        geocodeDelay: 1000, // Delay entre requisições (ms)
+        maxRetries: 3,
+        countryCode: 'br' // Código do país para geocodificação
+    },
+    
     // Configurações de notificação
     NOTIFICATION: {
         defaultDuration: 3000, // 3 segundos

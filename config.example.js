@@ -2,12 +2,7 @@
 // Copie este arquivo para config.js e configure suas APIs
 
 const CONFIG = {
-    // Google Maps API Key
-    // 1. Acesse: https://console.cloud.google.com/
-    // 2. Crie um projeto ou selecione um existente
-    // 3. Ative a API "Maps JavaScript API"
-    // 4. Crie uma chave de API
-    // 5. Substitua 'YOUR_API_KEY_HERE' pela sua chave
+
     GOOGLE_MAPS_API_KEY: 'AIzaSyBvOkBwv90wD4qP0qXwR1sT2uV3wX4yZ5a',
     
     // Configurações da aplicação

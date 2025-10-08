@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste - Integração OpenStreetMap</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="style.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <div class="row">
+            <div class="col-12">
+                <h1 class="mb-4">
+                    <i class="fas fa-map-marked-alt me-2"></i>
+                    Teste - Integração OpenStreetMap
+                </h1>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Controles de Teste -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-cogs me-2"></i>Controles de Teste</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="testAddress" class="form-label">Endereço para Teste</label>
+                            <input type="text" class="form-control" id="testAddress" 
+                                   value="Rua Augusta, 123, Consolação, São Paulo - SP">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="testAddresses" class="form-label">Múltiplos Endereços (um por linha)</label>
+                            <textarea class="form-control" id="testAddresses" rows="4" 
+                                      placeholder="Rua Augusta, 123, São Paulo&#10;Avenida Paulista, 1000, São Paulo&#10;Rua Oscar Freire, 200, São Paulo"></textarea>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-primary" id="testGeocode">
+                                <i class="fas fa-search me-1"></i>Testar Geocodificação
+                            </button>
+                            <button class="btn btn-success" id="testMultipleGeocode">
+                                <i class="fas fa-list me-1"></i>Testar Múltipla Geocodificação
+                            </button>
+                            <button class="btn btn-info" id="testRoute">
+                                <i class="fas fa-route me-1"></i>Testar Rota
+                            </button>
+                            <button class="btn btn-warning" id="clearMap">
+                                <i class="fas fa-trash me-1"></i>Limpar Mapa
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resultados -->
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h6><i class="fas fa-info-circle me-2"></i>Resultados</h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="testResults" class="small">
+                            <p class="text-muted">Clique em um dos botões para testar a integração.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mapa -->
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-map me-2"></i>Mapa Interativo</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="testMap" style="height: 500px; width: 100%;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="config.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="osm-integration.js"></script>
+    <script>
+        // Inicializar integração OSM
+        const osmIntegration = new OSMIntegration();
+        let testMap = null;
+
+        // Inicializar mapa de teste
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                testMap = osmIntegration.initMap('testMap', {
+                    center: [-23.5505, -46.6333], // São Paulo
+                    zoom: 12
+                });
+                console.log('Mapa de teste inicializado');
+            } catch (error) {
+                console.error('Erro ao inicializar mapa:', error);
+            }
+        });
+
+        // Teste de geocodificação simples
+        document.getElementById('testGeocode').addEventListener('click', async function() {
+            const address = document.getElementById('testAddress').value;
+            if (!address.trim()) {
+                alert('Digite um endereço para testar');
+                return;
+            }
+
+            try {
+                showResults('Geocodificando endereço...', 'info');
+                const coordinates = await osmIntegration.geocodeAddress(address);
+                
+                // Adicionar marcador no mapa
+                osmIntegration.addMarkers([{
+                    coordinates: coordinates,
+                    name: 'Endereço Teste',
+                    address: address
+                }]);
+
+                showResults(`
+                    <strong>Geocodificação bem-sucedida!</strong><br>
+                    <strong>Endereço:</strong> ${address}<br>
+                    <strong>Coordenadas:</strong> ${coordinates.lat.toFixed(6)}, ${coordinates.lng.toFixed(6)}<br>
+                    <strong>Endereço encontrado:</strong> ${coordinates.address}<br>
+                    <strong>Confiança:</strong> ${(coordinates.confidence * 100).toFixed(1)}%
+                `, 'success');
+
+            } catch (error) {
+                showResults(`<strong>Erro na geocodificação:</strong> ${error.message}`, 'danger');
+            }
+        });
+
+        // Teste de geocodificação múltipla
+        document.getElementById('testMultipleGeocode').addEventListener('click', async function() {
+            const addressesText = document.getElementById('testAddresses').value;
+            if (!addressesText.trim()) {
+                alert('Digite pelo menos um endereço para testar');
+                return;
+            }
+
+            const addresses = addressesText.split('\n').filter(addr => addr.trim());
+            if (addresses.length === 0) {
+                alert('Nenhum endereço válido encontrado');
+                return;
+            }
+
+            try {
+                showResults(`Geocodificando ${addresses.length} endereços...`, 'info');
+                const results = await osmIntegration.geocodeMultipleAddresses(addresses);
+                
+                // Adicionar marcadores no mapa
+                const points = results.successful.map((result, index) => ({
+                    coordinates: result.coordinates,
+                    name: `Ponto ${index + 1}`,
+                    address: result.address
+                }));
+                
+                osmIntegration.addMarkers(points);
+
+                let resultHtml = `
+                    <strong>Geocodificação múltipla concluída!</strong><br>
+                    <strong>Sucessos:</strong> ${results.successful.length}<br>
+                    <strong>Falhas:</strong> ${results.failed.length}<br><br>
+                `;
+
+                if (results.successful.length > 0) {
+                    resultHtml += '<strong>Endereços encontrados:</strong><br>';
+                    results.successful.forEach((result, index) => {
+                        resultHtml += `${index + 1}. ${result.address}<br>`;
+                    });
+                }
+
+                if (results.failed.length > 0) {
+                    resultHtml += '<br><strong>Endereços que falharam:</strong><br>';
+                    results.failed.forEach((result, index) => {
+                        resultHtml += `${index + 1}. ${result.address} - ${result.error}<br>`;
+                    });
+                }
+
+                showResults(resultHtml, results.failed.length === 0 ? 'success' : 'warning');
+
+            } catch (error) {
+                showResults(`<strong>Erro na geocodificação múltipla:</strong> ${error.message}`, 'danger');
+            }
+        });
+
+        // Teste de rota
+        document.getElementById('testRoute').addEventListener('click', async function() {
+            try {
+                showResults('Calculando rota de teste...', 'info');
+                
+                // Coordenadas de exemplo (São Paulo)
+                const coordinates = [
+                    { lat: -23.5505, lng: -46.6333 }, // Centro de SP
+                    { lat: -23.5613, lng: -46.6565 }, // Avenida Paulista
+                    { lat: -23.5489, lng: -46.6388 }, // Rua Augusta
+                    { lat: -23.5505, lng: -46.6333 }  // Volta ao centro
+                ];
+
+                const route = await osmIntegration.calculateRoute(coordinates);
+                
+                // Desenhar rota no mapa
+                osmIntegration.drawRoute(route);
+
+                showResults(`
+                    <strong>Rota calculada com sucesso!</strong><br>
+                    <strong>Distância:</strong> ${route.summary.totalDistance}<br>
+                    <strong>Duração:</strong> ${route.summary.totalDuration}<br>
+                    <strong>Pontos:</strong> ${route.waypoints.length}
+                `, 'success');
+
+            } catch (error) {
+                showResults(`<strong>Erro no cálculo da rota:</strong> ${error.message}`, 'danger');
+            }
+        });
+
+        // Limpar mapa
+        document.getElementById('clearMap').addEventListener('click', function() {
+            osmIntegration.clearMap();
+            showResults('Mapa limpo', 'info');
+        });
+
+        // Função para mostrar resultados
+        function showResults(message, type) {
+            const resultsDiv = document.getElementById('testResults');
+            resultsDiv.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+        }
+    </script>
+</body>
+</html>
